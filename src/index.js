@@ -1,0 +1,138 @@
+'use strict'
+
+/**
+ * dsh-plugin-settings-ui — host half.
+ *
+ * Persists the tweak settings (settings scope `settings-ui`) and serves them
+ * to the browser half over a tiny webServer route (GET status / PUT settings).
+ * The actual CSS injection lives entirely in the client half — the host never
+ * touches the frontend.
+ */
+
+const { join } = require('node:path')
+const { homedir } = require('node:os')
+// settings 服务要求 schemastery schema（宿主 vendored 副本优先，同 hermes-loop）
+function loadSchemastery() {
+  const errors = []
+  const { createRequire } = require('node:module')
+  for (const prefix of [process.env.DSH_GLOBAL_PREFIX, homedir() + '/.local'].filter(Boolean)) {
+    const hostCopy = join(prefix, 'lib', 'node_modules', '@deepseek-ai', 'dsh', 'node_modules', '@deepseek-ai', 'schemastery', 'lib', 'index.cjs')
+    try { return createRequire(hostCopy)(hostCopy) } catch (e) { errors.push(`host: ${String(e && e.message || e).slice(0, 100)}`) }
+  }
+  try { return require('@deepseek-ai/schemastery') } catch (e) { errors.push(`pkg: ${String(e && e.code || e)}`) }
+  schemaRequireError = errors.join(' | ')
+  return null
+}
+let schemaRequireError = null
+let Schema = loadSchemastery()
+
+const DEFAULTS = {
+  size: 'default',        // default | large | xlarge | full | custom
+  customWidth: 1280,
+  customHeight: 960,
+  opacity: 100,           // 30..100
+  bgMode: 'default',      // default | color | image
+  bgColor: '#1e2a38',
+  bgUrl: '',
+}
+
+function settingsSchema() {
+  if (!Schema) return null
+  return Schema.object({
+    size: Schema.union(['default', 'large', 'xlarge', 'full', 'custom']).default('default'),
+    customWidth: Schema.number().min(480).default(1280),
+    customHeight: Schema.number().min(360).default(960),
+    opacity: Schema.number().min(30).max(100).default(100),
+    bgMode: Schema.union(['default', 'color', 'image']).default('default'),
+    bgColor: Schema.string().default('#1e2a38'),
+    bgUrl: Schema.string().default(''),
+  })
+}
+
+/** settings 服务缺席时的回退校验（对齐 hermes-loop 的 sanitizeSettingsPatch）。 */
+function sanitizeSettingsPatch(patch) {
+  if (patch === null || typeof patch !== 'object') return {}
+  const out = {}
+  if (typeof patch.size === 'string' && ['default', 'large', 'xlarge', 'full', 'custom'].includes(patch.size)) out.size = patch.size
+  const num = (key, min) => {
+    const v = patch[key]
+    if (typeof v === 'number' && Number.isFinite(v) && v >= min) out[key] = v
+  }
+  num('customWidth', 480)
+  num('customHeight', 360)
+  if (typeof patch.opacity === 'number' && Number.isFinite(patch.opacity)) {
+    out.opacity = Math.min(100, Math.max(30, Math.round(patch.opacity)))
+  }
+  if (typeof patch.bgMode === 'string' && ['default', 'color', 'image'].includes(patch.bgMode)) out.bgMode = patch.bgMode
+  if (typeof patch.bgColor === 'string') out.bgColor = patch.bgColor
+  if (typeof patch.bgUrl === 'string') out.bgUrl = patch.bgUrl
+  return out
+}
+
+module.exports = {
+  name: 'dsh-settings-ui',
+  inject: ['settings', 'webServer'],
+  __internals: { DEFAULTS, settingsSchema, sanitizeSettingsPatch },
+
+  apply(ctx, config = {}) {
+    let settingsScope = null
+    const schema = settingsSchema()
+    if (schema && typeof ctx.settings.register === 'function') {
+      try {
+        settingsScope = ctx.settings.register('settings-ui', schema, { base: { ...DEFAULTS, ...config } })
+      } catch (e) {
+        ctx.logger.warn(`dsh-settings-ui: settings register: ${e && e.message}`)
+      }
+    }
+    const effective = () => {
+      if (settingsScope && typeof settingsScope.get === 'function') {
+        const v = settingsScope.get()
+        if (v && typeof v === 'object') return { ...DEFAULTS, ...config, ...v }
+      }
+      return { ...DEFAULTS, ...config }
+    }
+
+    const sendJson = (res, status, payload) => {
+      res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify(payload))
+    }
+    const readJsonBody = (req) => new Promise((fulfil, reject) => {
+      let size = 0
+      const chunks = []
+      req.on('data', (chunk) => {
+        size += chunk.length
+        if (size > 64 * 1024) { reject(new Error('request body too large')); req.destroy(); return }
+        chunks.push(chunk)
+      })
+      req.on('end', () => {
+        try { fulfil(chunks.length === 0 ? {} : JSON.parse(Buffer.concat(chunks).toString('utf8'))) }
+        catch (error) { reject(new Error(`invalid JSON body: ${error && error.message}`)) }
+      })
+      req.on('error', reject)
+    })
+
+    ctx.effect(() => ctx.webServer.register({
+      kind: 'prefix',
+      path: '/dsh-settings-ui/api',
+      handler: async (req, res) => {
+        try {
+          const url = new URL(req.url || '/', 'http://dsh.local')
+          const apiPath = url.pathname.replace(/\/+$/, '')
+          if (req.method === 'GET' && apiPath.endsWith('/dsh-settings-ui/api/status')) {
+            sendJson(res, 200, { settings: effective() })
+            return
+          }
+          if (req.method === 'PUT' && apiPath.endsWith('/dsh-settings-ui/api/settings')) {
+            const body = await readJsonBody(req)
+            if (body === null || typeof body !== 'object') { sendJson(res, 400, { error: 'body must be an object' }); return }
+            if (settingsScope && typeof settingsScope.update === 'function') await settingsScope.update(body)
+            else Object.assign(config, sanitizeSettingsPatch(body))
+            sendJson(res, 200, { ok: true, settings: effective() })
+            return
+          }
+          sendJson(res, 404, { error: 'not found' })
+        } catch (error) { sendJson(res, 400, { error: String(error && error.message || error) }) }
+      },
+    }), 'dsh-settings-ui: client api route')
+  },
+}

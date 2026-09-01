@@ -1,0 +1,11 @@
+# dsh-plugin-setting-ui bundle patch: contributes the plugin row into the host
+# composition when this package is installed via `dsh plugin add`.
+#
+# The plugin is CLIENT-PLANE: its host half is a no-op stub, but the web shell
+# discovers plugin client bundles through the host composition rows, so this
+# insert is what makes the browser load client/bundle.js. It must land in the
+# host composition (this insert), never inside an agent preset.
+
+- insert:
+    - id: dsh-settings-ui
+      name: '@weibaohui/dsh-settings-ui'
