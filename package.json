@@ -1,6 +1,6 @@
 {
   "name": "@weibaohui/dsh-settings-ui",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "dsh 插件 · 设置界面自定义：调整原生设置窗口大小（全屏 / 预置大尺寸 / 自定义宽高）、背景透明度与背景（主题 / 自定义颜色 / 图片），悬浮球即开即调，存本机浏览器",
   "license": "MIT",
   "keywords": [
