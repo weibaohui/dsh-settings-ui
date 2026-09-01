@@ -48,3 +48,7 @@ dsh plugin --profile web add @weibaohui/dsh-settings-ui -w
 
 - 尺寸/透明度/背景只作用于原生设置窗口本身，不影响其他界面
 - 适配的宿主面板类名来自 `dsh-client-ui-settings-general`（dsh 0.1.1-rc.2 实测）；dsh 大版本升级若面板类名变化，调整会静默失效（无害，恢复默认样式），届时更新本插件即可
+
+## 联系我 :飞书群
+
+![link](https://foruda.gitee.com/images/1774880015525784725/4fd67005_77493.png "link")
