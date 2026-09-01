@@ -28,6 +28,7 @@ window.__ModuleLoader__.load({
         createElement(type, props) { for (var l = arguments.length, kids = [], i = 2; i < l; i++) kids.push(arguments[i]); return { type, props: props || {}, kids } },
         useState(init) { var v = [typeof init === 'function' ? init() : init]; return [v[0], function (x) { v[0] = typeof x === 'function' ? x(v[0]) : x }] },
         useEffect() {},
+        useRef(v) { return { current: v === undefined ? null : v } },
       }
     }
     var h = __React.createElement
@@ -59,6 +60,11 @@ window.__ModuleLoader__.load({
       bgColorDark: '暗色主题',
       'bg.image': '图片',
       bgUrl: '图片地址',
+      upload: '上传本地图片',
+      noFile: '未上传',
+      clearUpload: '清除已上传',
+      uploading: '上传中…',
+      uploadFailed: '上传失败',
       reset: '恢复默认',
       saved: '已保存',
       hint: '改动即时生效；纯色按亮/暗主题各存一色，切换自动跟随；随 dsh profile 保存',
@@ -81,6 +87,11 @@ window.__ModuleLoader__.load({
       bgColorDark: 'Dark theme',
       'bg.image': 'Image',
       bgUrl: 'Image URL',
+      upload: 'Upload local image',
+      noFile: 'none uploaded',
+      clearUpload: 'Clear upload',
+      uploading: 'Uploading…',
+      uploadFailed: 'Upload failed',
       reset: 'Reset',
       saved: 'Saved',
       hint: 'Applies live; colors are stored per theme and follow theme switches; saved with the dsh profile',
@@ -136,7 +147,10 @@ window.__ModuleLoader__.load({
       var base = bgMode === 'color' && picked ? picked : 'var(--dsw-alias-bg-layer-2)'
       var color = opacity < 100 ? 'color-mix(in srgb, ' + base + ' ' + opacity + '%, transparent)' : base
       p.push('background-color:' + color)
-      if (bgMode === 'image' && s.bgUrl) {
+      if (bgMode === 'image' && s.bgFile) {
+        p.push('background-image:url("/dsh-settings-ui/bg?v=' + encodeURIComponent(s.bgRev || '') + '")',
+          'background-size:cover', 'background-position:center')
+      } else if (bgMode === 'image' && s.bgUrl) {
         p.push('background-image:url("' + String(s.bgUrl).replace(/\\/g, '%5C').replace(/"/g, '%22') + '")',
           'background-size:cover', 'background-position:center')
       }
@@ -170,6 +184,23 @@ window.__ModuleLoader__.load({
       const [s, setS] = useState(null)
       const [flash, setFlash] = useState('')
       const [err, setErr] = useState('')
+      const fileRef = __React.useRef(null)
+      const [busy, setBusy] = useState(false)
+      const onFile = async (e) => {
+        const f = e.target.files && e.target.files[0]
+        e.target.value = '' // 允许重复选择同一文件
+        if (!f) return
+        setBusy(true); setErr('')
+        try {
+          const body = new Uint8Array(await f.arrayBuffer())
+          const r = await fetch(API + '/bg', { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body })
+          const d = await r.json().catch(() => ({}))
+          if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status)
+          if (d.settings) { setS(d.settings); applyCss(d.settings) }
+          setFlash(t('saved')); setTimeout(() => setFlash(''), 1600)
+        } catch (ex) { setErr(t('uploadFailed') + ': ' + (ex.message || ex)); setTimeout(() => setErr(''), 4000) }
+        finally { setBusy(false) }
+      }
       useEffect(() => {
         getJson(API + '/status')
           .then((d) => { setS(d.settings || DEFAULTS); applyCss(d.settings) })
@@ -206,6 +237,7 @@ window.__ModuleLoader__.load({
       if (err !== '' && s === null) return h('div', { className: 'su-sec' }, h('span', { className: 'su-err' }, err))
       if (s === null) return h('div', { className: 'su-sec' }, '…')
       return h('div', { className: 'su-sec' },
+        h('input', { ref: fileRef, type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', style: { display: 'none' }, onChange: onFile }),
         h('div', { className: 'su-row' },
           h('span', { className: 'su-label' }, t('size')),
           flash ? h('span', { className: 'su-flash' }, flash) : null,
@@ -242,14 +274,24 @@ window.__ModuleLoader__.load({
           })
           : null,
         s.bgMode === 'image'
-          ? h('div', { className: 'su-row' },
-            h('span', { className: 'su-k' }, t('bgUrl')),
-            h('input', {
-              className: 'su-text', type: 'text', placeholder: 'https://…', spellCheck: false,
-              defaultValue: s.bgUrl,
-              onKeyDown: (e) => { if (e.key === 'Enter') e.target.blur() },
-              onBlur: (e) => { if (e.target.value.trim() !== s.bgUrl) save({ bgUrl: e.target.value.trim() }) },
-            }))
+          ? [
+            h('div', { className: 'su-row', key: 'up' },
+              h('button', {
+                className: 'su-chip', type: 'button', disabled: busy,
+                onClick: () => { if (fileRef.current) fileRef.current.click() },
+              }, t('upload')),
+              busy ? h('span', { className: 'su-mut' }, t('uploading')) : null,
+              s.bgFile ? h('span', { className: 'su-k' }, s.bgFile + ' (' + t('saved') + ')') : h('span', { className: 'su-k su-mut' }, t('noFile')),
+              s.bgFile ? h('button', { className: 'su-chip', type: 'button', onClick: () => save({ bgFile: '', bgRev: '' }) }, t('clearUpload')) : null),
+            h('div', { className: 'su-row', key: 'url' },
+              h('span', { className: 'su-k' }, t('bgUrl')),
+              h('input', {
+                className: 'su-text', type: 'text', placeholder: 'https://…', spellCheck: false,
+                defaultValue: s.bgUrl,
+                onKeyDown: (e) => { if (e.key === 'Enter') e.target.blur() },
+                onBlur: (e) => { if (e.target.value.trim() !== s.bgUrl) save({ bgUrl: e.target.value.trim() }) },
+              })),
+          ]
           : null,
         h('div', { className: 'su-foot' },
           h('button', { className: 'su-chip', type: 'button', onClick: () => save({ ...DEFAULTS }) }, t('reset')),
