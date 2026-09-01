@@ -39,7 +39,7 @@ window.__ModuleLoader__.load({
     var API = '/dsh-settings-ui/api'
     var STYLE_ID = 'dsh-settings-ui-style'
     var PANEL_SCOPED = '.VOzbGW_overlay .VOzbGW_panel'
-    var DEFAULTS = { size: 'default', customWidth: 1280, customHeight: 960, opacity: 100, bgMode: 'default', bgColor: '#1e2a38', bgUrl: '' }
+    var DEFAULTS = { size: 'default', customWidth: 1280, customHeight: 960, opacity: 100, bgMode: 'default', bgColorLight: '#eef1f5', bgColorDark: '#1e2a38', bgUrl: '' }
     var PRESETS = { large: { w: 1080, h: 780 }, xlarge: { w: 1280, h: 960 } }
 
     var ZH = {
@@ -55,11 +55,13 @@ window.__ModuleLoader__.load({
       bg: '背景',
       'bg.default': '主题默认',
       'bg.color': '纯色',
+      bgColorLight: '浅色主题',
+      bgColorDark: '暗色主题',
       'bg.image': '图片',
       bgUrl: '图片地址',
       reset: '恢复默认',
       saved: '已保存',
-      hint: '改动即时生效；设置随 dsh profile 保存，浏览器间共享',
+      hint: '改动即时生效；纯色按亮/暗主题各存一色，切换自动跟随；随 dsh profile 保存',
       loadFailed: '设置加载失败',
     }
     var EN = {
@@ -75,11 +77,13 @@ window.__ModuleLoader__.load({
       bg: 'Background',
       'bg.default': 'Theme',
       'bg.color': 'Color',
+      bgColorLight: 'Light theme',
+      bgColorDark: 'Dark theme',
       'bg.image': 'Image',
       bgUrl: 'Image URL',
       reset: 'Reset',
       saved: 'Saved',
-      hint: 'Applies live; stored with the dsh profile, shared across browsers',
+      hint: 'Applies live; colors are stored per theme and follow theme switches; saved with the dsh profile',
       loadFailed: 'Failed to load settings',
     }
 
@@ -110,8 +114,8 @@ window.__ModuleLoader__.load({
       document.head.appendChild(tag)
     }
 
-    /** Pure CSS generator (unit-tested via __internals). */
-    function buildCss(s) {
+    /** Pure CSS generator (unit-tested via __internals). dark=false → light theme color. */
+    function buildCss(s, dark) {
       s = s || {}
       var size = s.size || 'default'
       var opacity = Math.min(100, Math.max(30, Number(s.opacity) || 100))
@@ -128,7 +132,8 @@ window.__ModuleLoader__.load({
         var hh = Math.max(360, Number(s.customHeight) || DEFAULTS.customHeight)
         p.push('width:min(' + w + 'px, calc(100vw - 48px))', 'height:min(' + hh + 'px, calc(100vh - 48px))')
       }
-      var base = bgMode === 'color' && s.bgColor ? s.bgColor : 'var(--dsw-alias-bg-layer-2)'
+      var picked = dark ? s.bgColorDark : s.bgColorLight
+      var base = bgMode === 'color' && picked ? picked : 'var(--dsw-alias-bg-layer-2)'
       var color = opacity < 100 ? 'color-mix(in srgb, ' + base + ' ' + opacity + '%, transparent)' : base
       p.push('background-color:' + color)
       if (bgMode === 'image' && s.bgUrl) {
@@ -139,8 +144,13 @@ window.__ModuleLoader__.load({
     }
 
     var tweakStyle = null
+    var lastSettings = null
+    var isDark = function () {
+      try { return document.body.hasAttribute('data-ds-dark-theme') } catch { return false }
+    }
     function applyCss(s) {
       if (typeof document === 'undefined') return
+      if (s) lastSettings = s
       if (tweakStyle === null) {
         tweakStyle = document.getElementById(STYLE_ID)
         if (tweakStyle === null) {
@@ -149,7 +159,7 @@ window.__ModuleLoader__.load({
           document.head.appendChild(tweakStyle)
         }
       }
-      tweakStyle.textContent = buildCss(s)
+      if (lastSettings) tweakStyle.textContent = buildCss(lastSettings, isDark())
     }
 
     var getJson = (url) => fetch(url).then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json() })
@@ -220,12 +230,16 @@ window.__ModuleLoader__.load({
         h('div', { className: 'su-label' }, t('bg')),
         chips(['bg.default', 'bg.color', 'bg.image'], 'bg.' + s.bgMode, (k) => save({ bgMode: k.replace('bg.', '') })),
         s.bgMode === 'color'
-          ? h('div', { className: 'su-row' },
-            h('input', {
-              className: 'su-color', type: 'color',
-              value: /^#[0-9a-fA-F]{6}$/.test(s.bgColor) ? s.bgColor : DEFAULTS.bgColor,
-              onChange: (e) => save({ bgColor: e.target.value }),
-            }))
+          ? ['Light', 'Dark'].map((which) => {
+            const key = 'bgColor' + which
+            const value = /^#[0-9a-fA-F]{6}$/.test(s[key]) ? s[key] : DEFAULTS[key]
+            return h('div', { className: 'su-row', key },
+              h('span', { className: 'su-k' }, t('bgColor' + which)),
+              h('input', {
+                className: 'su-color', type: 'color', value,
+                onChange: (e) => { const patch = {}; patch[key] = e.target.value; save(patch) },
+              }))
+          })
           : null,
         s.bgMode === 'image'
           ? h('div', { className: 'su-row' },
@@ -259,6 +273,12 @@ window.__ModuleLoader__.load({
         ensureStyles()
         // 开机即应用一次：不打开设置 section 也让已保存的调整生效
         try { getJson(API + '/status').then((d) => applyCss(d && d.settings)).catch(() => {}) } catch {}
+        // 亮暗切换实时跟随：主题服务切换 body[data-ds-dark-theme]，观察后重应用
+        try {
+          const observer = new MutationObserver(() => applyCss())
+          observer.observe(document.body, { attributes: true, attributeFilter: ['data-ds-dark-theme'] })
+          ctx.effect(() => () => observer.disconnect(), 'dsh-settings-ui: theme observer')
+        } catch { /* Observer 不可用：重启页面后仍会取对的主题色 */ }
         ctx.effect(() => {
           try {
             ctx.slots.inject('settings.section', () => ctx.slots.register({

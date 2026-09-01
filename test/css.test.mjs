@@ -59,9 +59,13 @@ test('buildCss: 不透明度经 color-mix 生效并钳位 30–100', () => {
   assert.equal(buildCss({ ...DEFAULTS, opacity: 100 }), '')
 })
 
-test('buildCss: 背景=纯色/图片（URL 引号转义；颜色同样参与透明度混合）', () => {
-  assert.match(buildCss({ ...DEFAULTS, bgMode: 'color', bgColor: '#112233' }), /background-color:#112233/)
-  assert.match(buildCss({ ...DEFAULTS, bgMode: 'color', bgColor: '#112233', opacity: 50 }),
+test('buildCss: 背景=纯色/图片（URL 引号转义；亮暗各取各色；颜色参与透明度混合）', () => {
+  const state = { ...DEFAULTS, bgMode: 'color', bgColorLight: '#f5f5f5', bgColorDark: '#101820' }
+  assert.match(buildCss(state, false), /background-color:#f5f5f5/)
+  assert.match(buildCss(state, true), /background-color:#101820/)
+  // 空串取值回退主题 token（跟随主题）
+  assert.match(buildCss({ ...DEFAULTS, bgMode: 'color', bgColorDark: '' }, true), /background-color:var\(--dsw-alias-bg-layer-2\)/)
+  assert.match(buildCss({ ...DEFAULTS, bgMode: 'color', bgColorDark: '#112233', opacity: 50 }, true),
     /color-mix\(in srgb, #112233 50%, transparent\)/)
   const img = buildCss({ ...DEFAULTS, bgMode: 'image', bgUrl: 'https://x/y".png' })
   assert.match(img, /background-image:url\("https:\/\/x\/y%22\.png"\)/)
@@ -75,8 +79,8 @@ const host = require2('../src/index.js')
 const { sanitizeSettingsPatch } = host.__internals
 
 test('sanitize: 白名单字段通过，非法 size/bgMode/低 opacity 被拒或钳位', () => {
-  assert.deepEqual(sanitizeSettingsPatch({ size: 'full', opacity: 60, bgMode: 'color', bgColor: '#000', bgUrl: ' x ', customWidth: 1000 }),
-    { size: 'full', opacity: 60, bgMode: 'color', bgColor: '#000', bgUrl: ' x ', customWidth: 1000 })
+  assert.deepEqual(sanitizeSettingsPatch({ size: 'full', opacity: 60, bgMode: 'color', bgColorLight: '#eee', bgColorDark: '#111', bgUrl: ' x ', customWidth: 1000 }),
+    { size: 'full', opacity: 60, bgMode: 'color', bgColorLight: '#eee', bgColorDark: '#111', bgUrl: ' x ', customWidth: 1000 })
   assert.deepEqual(sanitizeSettingsPatch({ size: 'giant' }), {})
   assert.deepEqual(sanitizeSettingsPatch({ bgMode: 'hologram' }), {})
   assert.deepEqual(sanitizeSettingsPatch({ opacity: 5 }).opacity, 30)

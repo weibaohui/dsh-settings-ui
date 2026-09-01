@@ -32,7 +32,8 @@ const DEFAULTS = {
   customHeight: 960,
   opacity: 100,           // 30..100
   bgMode: 'default',      // default | color | image
-  bgColor: '#1e2a38',
+  bgColorLight: '#eef1f5',  // 亮色主题下的纯色背景
+  bgColorDark: '#1e2a38',   // 暗色主题下的纯色背景
   bgUrl: '',
 }
 
@@ -44,7 +45,8 @@ function settingsSchema() {
     customHeight: Schema.number().min(360).default(960),
     opacity: Schema.number().min(30).max(100).default(100),
     bgMode: Schema.union(['default', 'color', 'image']).default('default'),
-    bgColor: Schema.string().default('#1e2a38'),
+    bgColorLight: Schema.string().default('#eef1f5'),
+    bgColorDark: Schema.string().default('#1e2a38'),
     bgUrl: Schema.string().default(''),
   })
 }
@@ -64,7 +66,8 @@ function sanitizeSettingsPatch(patch) {
     out.opacity = Math.min(100, Math.max(30, Math.round(patch.opacity)))
   }
   if (typeof patch.bgMode === 'string' && ['default', 'color', 'image'].includes(patch.bgMode)) out.bgMode = patch.bgMode
-  if (typeof patch.bgColor === 'string') out.bgColor = patch.bgColor
+  if (typeof patch.bgColorLight === 'string') out.bgColorLight = patch.bgColorLight
+  if (typeof patch.bgColorDark === 'string') out.bgColorDark = patch.bgColorDark
   if (typeof patch.bgUrl === 'string') out.bgUrl = patch.bgUrl
   return out
 }
