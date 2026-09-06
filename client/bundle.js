@@ -3,7 +3,7 @@
  * Single surface: a section inside the NATIVE dsh settings window
  * (`settings.section` slot, same pattern as dsh-continue). Adjusts the
  * settings window itself: size (presets / fullscreen / custom W×H), background
- * translucency, background color or image. Values live in the host settings
+ * translucency, and background color. Values live in the host settings
  * scope (GET/PUT /dsh-settings-ui/api/*); the client applies them as an
  * injected <style> at boot and after every save — changes take effect while
  * the settings window is open.
@@ -40,7 +40,7 @@ window.__ModuleLoader__.load({
     var API = '/dsh-settings-ui/api'
     var STYLE_ID = 'dsh-settings-ui-style'
     var PANEL_SCOPED = '.VOzbGW_overlay .VOzbGW_panel'
-    var DEFAULTS = { size: 'default', customWidth: 1280, customHeight: 960, opacity: 100, bgMode: 'default', bgColorLight: '#eef1f5', bgColorDark: '#1e2a38', bgUrl: '' }
+    var DEFAULTS = { size: 'default', customWidth: 1280, customHeight: 960, opacity: 100, bgMode: 'default', bgColorLight: '#eef1f5', bgColorDark: '#1e2a38' }
     var PRESETS = { large: { w: 1080, h: 780 }, xlarge: { w: 1280, h: 960 } }
 
     var ZH = {
@@ -58,13 +58,6 @@ window.__ModuleLoader__.load({
       'bg.color': '纯色',
       bgColorLight: '浅色主题',
       bgColorDark: '暗色主题',
-      'bg.image': '图片',
-      bgUrl: '图片地址',
-      upload: '上传本地图片',
-      noFile: '未上传',
-      clearUpload: '清除已上传',
-      uploading: '上传中…',
-      uploadFailed: '上传失败',
       reset: '恢复默认',
       saved: '已保存',
       hint: '改动即时生效；纯色按亮/暗主题各存一色，切换自动跟随；随 dsh profile 保存',
@@ -85,13 +78,6 @@ window.__ModuleLoader__.load({
       'bg.color': 'Color',
       bgColorLight: 'Light theme',
       bgColorDark: 'Dark theme',
-      'bg.image': 'Image',
-      bgUrl: 'Image URL',
-      upload: 'Upload local image',
-      noFile: 'none uploaded',
-      clearUpload: 'Clear upload',
-      uploading: 'Uploading…',
-      uploadFailed: 'Upload failed',
       reset: 'Reset',
       saved: 'Saved',
       hint: 'Applies live; colors are stored per theme and follow theme switches; saved with the dsh profile',
@@ -110,7 +96,6 @@ window.__ModuleLoader__.load({
       '.su-mut{opacity:.7;font-variant-numeric:tabular-nums}',
       '.su-range{flex:1;min-width:110px;accent-color:var(--dsw-alias-state-positive,#3aa76d)}',
       '.su-color{width:44px;height:26px;padding:0;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.3));border-radius:6px;background:transparent;cursor:pointer}',
-      '.su-text{flex:1;min-width:150px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.3));border-radius:6px;padding:3px 8px;font-size:12px;background:var(--dsw-alias-bg-layer-2,transparent);color:inherit}',
       '.su-foot{display:flex;align-items:center;gap:10px;margin-top:2px}',
       '.su-hint{font-size:11px;opacity:.5;flex:1}',
       '.su-flash{font-size:12px;color:var(--dsw-alias-state-positive,#3aa76d)}',
@@ -147,13 +132,6 @@ window.__ModuleLoader__.load({
       var base = bgMode === 'color' && picked ? picked : 'var(--dsw-alias-bg-layer-2)'
       var color = opacity < 100 ? 'color-mix(in srgb, ' + base + ' ' + opacity + '%, transparent)' : base
       p.push('background-color:' + color)
-      if (bgMode === 'image' && s.bgFile) {
-        p.push('background-image:url("/dsh-settings-ui/bg?v=' + encodeURIComponent(s.bgRev || '') + '")',
-          'background-size:cover', 'background-position:center')
-      } else if (bgMode === 'image' && s.bgUrl) {
-        p.push('background-image:url("' + String(s.bgUrl).replace(/\\/g, '%5C').replace(/"/g, '%22') + '")',
-          'background-size:cover', 'background-position:center')
-      }
       return PANEL_SCOPED + '{' + p.join(';') + '}'
     }
 
@@ -184,23 +162,6 @@ window.__ModuleLoader__.load({
       const [s, setS] = useState(null)
       const [flash, setFlash] = useState('')
       const [err, setErr] = useState('')
-      const fileRef = __React.useRef(null)
-      const [busy, setBusy] = useState(false)
-      const onFile = async (e) => {
-        const f = e.target.files && e.target.files[0]
-        e.target.value = '' // 允许重复选择同一文件
-        if (!f) return
-        setBusy(true); setErr('')
-        try {
-          const body = new Uint8Array(await f.arrayBuffer())
-          const r = await fetch(API + '/bg', { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body })
-          const d = await r.json().catch(() => ({}))
-          if (!r.ok) throw new Error(d.error || 'HTTP ' + r.status)
-          if (d.settings) { setS(d.settings); applyCss(d.settings) }
-          setFlash(t('saved')); setTimeout(() => setFlash(''), 1600)
-        } catch (ex) { setErr(t('uploadFailed') + ': ' + (ex.message || ex)); setTimeout(() => setErr(''), 4000) }
-        finally { setBusy(false) }
-      }
       useEffect(() => {
         getJson(API + '/status')
           .then((d) => { setS(d.settings || DEFAULTS); applyCss(d.settings) })
@@ -237,7 +198,6 @@ window.__ModuleLoader__.load({
       if (err !== '' && s === null) return h('div', { className: 'su-sec' }, h('span', { className: 'su-err' }, err))
       if (s === null) return h('div', { className: 'su-sec' }, '…')
       return h('div', { className: 'su-sec' },
-        h('input', { ref: fileRef, type: 'file', accept: 'image/png,image/jpeg,image/gif,image/webp', style: { display: 'none' }, onChange: onFile }),
         h('div', { className: 'su-row' },
           h('span', { className: 'su-label' }, t('size')),
           flash ? h('span', { className: 'su-flash' }, flash) : null,
@@ -260,7 +220,7 @@ window.__ModuleLoader__.load({
           }),
           h('span', { className: 'su-mut' }, s.opacity + '%')),
         h('div', { className: 'su-label' }, t('bg')),
-        chips(['bg.default', 'bg.color', 'bg.image'], 'bg.' + s.bgMode, (k) => save({ bgMode: k.replace('bg.', '') })),
+        chips(['bg.default', 'bg.color'], 'bg.' + s.bgMode, (k) => save({ bgMode: k.replace('bg.', '') })),
         s.bgMode === 'color'
           ? ['Light', 'Dark'].map((which) => {
             const key = 'bgColor' + which
@@ -272,26 +232,6 @@ window.__ModuleLoader__.load({
                 onChange: (e) => { const patch = {}; patch[key] = e.target.value; save(patch) },
               }))
           })
-          : null,
-        s.bgMode === 'image'
-          ? [
-            h('div', { className: 'su-row', key: 'up' },
-              h('button', {
-                className: 'su-chip', type: 'button', disabled: busy,
-                onClick: () => { if (fileRef.current) fileRef.current.click() },
-              }, t('upload')),
-              busy ? h('span', { className: 'su-mut' }, t('uploading')) : null,
-              s.bgFile ? h('span', { className: 'su-k' }, s.bgFile + ' (' + t('saved') + ')') : h('span', { className: 'su-k su-mut' }, t('noFile')),
-              s.bgFile ? h('button', { className: 'su-chip', type: 'button', onClick: () => save({ bgFile: '', bgRev: '' }) }, t('clearUpload')) : null),
-            h('div', { className: 'su-row', key: 'url' },
-              h('span', { className: 'su-k' }, t('bgUrl')),
-              h('input', {
-                className: 'su-text', type: 'text', placeholder: 'https://…', spellCheck: false,
-                defaultValue: s.bgUrl,
-                onKeyDown: (e) => { if (e.key === 'Enter') e.target.blur() },
-                onBlur: (e) => { if (e.target.value.trim() !== s.bgUrl) save({ bgUrl: e.target.value.trim() }) },
-              })),
-          ]
           : null,
         h('div', { className: 'su-foot' },
           h('button', { className: 'su-chip', type: 'button', onClick: () => save({ ...DEFAULTS }) }, t('reset')),

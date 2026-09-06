@@ -59,7 +59,7 @@ test('buildCss: 不透明度经 color-mix 生效并钳位 30–100', () => {
   assert.equal(buildCss({ ...DEFAULTS, opacity: 100 }), '')
 })
 
-test('buildCss: 背景=纯色/图片（URL 引号转义；亮暗各取各色；颜色参与透明度混合）', () => {
+test('buildCss: 背景=纯色（亮暗各取各色；空串回退主题；颜色参与透明度混合）', () => {
   const state = { ...DEFAULTS, bgMode: 'color', bgColorLight: '#f5f5f5', bgColorDark: '#101820' }
   assert.match(buildCss(state, false), /background-color:#f5f5f5/)
   assert.match(buildCss(state, true), /background-color:#101820/)
@@ -67,10 +67,12 @@ test('buildCss: 背景=纯色/图片（URL 引号转义；亮暗各取各色；�
   assert.match(buildCss({ ...DEFAULTS, bgMode: 'color', bgColorDark: '' }, true), /background-color:var\(--dsw-alias-bg-layer-2\)/)
   assert.match(buildCss({ ...DEFAULTS, bgMode: 'color', bgColorDark: '#112233', opacity: 50 }, true),
     /color-mix\(in srgb, #112233 50%, transparent\)/)
-  const img = buildCss({ ...DEFAULTS, bgMode: 'image', bgUrl: 'https://x/y".png' })
-  assert.match(img, /background-image:url\("https:\/\/x\/y%22\.png"\)/)
-  assert.match(img, /background-size:cover/)
-  assert.match(img, /background-position:center/)
+})
+
+test('buildCss: 已下线的 image 模式不再产出 background-image（旧值回落主题）', () => {
+  const img = buildCss({ ...DEFAULTS, bgMode: 'image', bgUrl: 'https://x/y.png', bgFile: 'bg.png', bgRev: 'abc' })
+  assert.doesNotMatch(img, /background-image/)
+  assert.doesNotMatch(img, /dsh-settings-ui\/bg/)
 })
 
 // ── host sanitizeSettingsPatch ──────────────────────────────────────────
@@ -79,10 +81,12 @@ const host = require2('../src/index.js')
 const { sanitizeSettingsPatch } = host.__internals
 
 test('sanitize: 白名单字段通过，非法 size/bgMode/低 opacity 被拒或钳位', () => {
-  assert.deepEqual(sanitizeSettingsPatch({ size: 'full', opacity: 60, bgMode: 'color', bgColorLight: '#eee', bgColorDark: '#111', bgUrl: ' x ', customWidth: 1000 }),
-    { size: 'full', opacity: 60, bgMode: 'color', bgColorLight: '#eee', bgColorDark: '#111', bgUrl: ' x ', customWidth: 1000 })
+  assert.deepEqual(sanitizeSettingsPatch({ size: 'full', opacity: 60, bgMode: 'color', bgColorLight: '#eee', bgColorDark: '#111', customWidth: 1000 }),
+    { size: 'full', opacity: 60, bgMode: 'color', bgColorLight: '#eee', bgColorDark: '#111', customWidth: 1000 })
   assert.deepEqual(sanitizeSettingsPatch({ size: 'giant' }), {})
   assert.deepEqual(sanitizeSettingsPatch({ bgMode: 'hologram' }), {})
+  // 旧版 image 模式回落 default；图片字段（bgUrl/bgFile/bgRev）被剔除
+  assert.deepEqual(sanitizeSettingsPatch({ bgMode: 'image', bgUrl: 'https://x/y.png', bgFile: 'bg.png', bgRev: 'abc' }), { bgMode: 'default' })
   assert.deepEqual(sanitizeSettingsPatch({ opacity: 5 }).opacity, 30)
   assert.deepEqual(sanitizeSettingsPatch({ opacity: 500 }).opacity, 100)
   assert.deepEqual(sanitizeSettingsPatch({ customWidth: 100 }), {})
