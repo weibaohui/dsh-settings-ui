@@ -75,6 +75,14 @@ test('buildCss: 已下线的 image 模式不再产出 background-image（旧值�
   assert.doesNotMatch(img, /dsh-settings-ui\/bg/)
 })
 
+test('ensureStyles: 设置窗口左菜单超高可滚动（section 多时不再被面板裁剪）', () => {
+  const { STYLES } = client.__internals
+  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_nav\{min-height:0\}/)
+  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_navList\{[^}]*flex:1 1 auto/)
+  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_navList\{[^}]*min-height:0/)
+  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_navList\{[^}]*overflow-y:auto/)
+})
+
 // ── host sanitizeSettingsPatch ──────────────────────────────────────────
 
 const host = require2('../src/index.js')

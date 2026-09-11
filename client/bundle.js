@@ -100,6 +100,10 @@ window.__ModuleLoader__.load({
       '.su-hint{font-size:11px;opacity:.5;flex:1}',
       '.su-flash{font-size:12px;color:var(--dsw-alias-state-positive,#3aa76d)}',
       '.su-err{font-size:12px;color:var(--dsw-alias-state-error,#c75050)}',
+      // 宿主设置窗口左菜单没有 overflow 处理，section 多时被面板 overflow:hidden 裁掉；
+      // 让列表占满剩余高度并可滚动。overflow-y:auto 在放得下时不产生任何视觉变化。
+      '.VOzbGW_overlay .VOzbGW_nav{min-height:0}',
+      '.VOzbGW_overlay .VOzbGW_navList{flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:12px}',
     ].join('')
 
     function ensureStyles() {
@@ -241,7 +245,7 @@ window.__ModuleLoader__.load({
     module.exports = {
       name: CLIENT_NAME,
       inject: ['slots', 'locale'],
-      __internals: { buildCss, DEFAULTS, PANEL_SCOPED },
+      __internals: { buildCss, DEFAULTS, PANEL_SCOPED, STYLES },
       apply(ctx) {
         let t = (key) => { const out = EN[key]; return out !== undefined ? out : key }
         try {
