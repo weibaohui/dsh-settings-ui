@@ -31,7 +31,8 @@
     "prepublishOnly": "npm run check && npm test"
   },
   "engines": {
-    "node": ">=22.5"
+    "node": ">=22.5",
+    "dsh": ">=0.1.2-rc.1"
   },
   "dsh": {
     "bundle": {
