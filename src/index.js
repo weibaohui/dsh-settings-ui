@@ -76,7 +76,7 @@ function sanitizeSettingsPatch(patch) {
 
 module.exports = {
   name: 'dsh-settings-ui',
-  inject: ['settings', 'webServer'],
+  inject: ['settings', 'webServer', 'connection'],
   __internals: { DEFAULTS, settingsSchema, sanitizeSettingsPatch, normalizeBgMode },
 
   apply(ctx, config = {}) {
@@ -128,6 +128,14 @@ module.exports = {
       kind: 'prefix',
       path: '/dsh-settings-ui/api',
       handler: async (req, res) => {
+          // 与其它 host 路由一致的信任栅栏：connection 服务的 Host/Origin 检查
+          // 加浏览器认证，防止本机任意网页跨站调用。
+          const rejection = ctx.connection.requestRejection(req)
+          if (rejection !== undefined) {
+            res.writeHead(rejection)
+            res.end()
+            return
+          }
         try {
           const url = new URL(req.url || '/', 'http://dsh.local')
           const apiPath = url.pathname.replace(/\/+$/, '')
