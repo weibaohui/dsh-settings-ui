@@ -3,16 +3,16 @@
  * Single surface: a section inside the NATIVE dsh settings window
  * (`settings.section` slot, same pattern as dsh-continue). Adjusts the
  * settings window itself: size (presets / fullscreen / custom W×H), background
- * translucency, and background color. Values live in the host settings
- * scope (GET/PUT /dsh-settings-ui/api/*); the client applies them as an
- * injected <style> at boot and after every save — changes take effect while
- * the settings window is open.
+ * translucency, and background color. Values are persisted host-side in the
+ * dsh settings document (GET/PUT /dsh-settings-ui/api/*); the client applies
+ * them as an injected <style> at boot and after every save — changes take
+ * effect while the settings window is open.
  *
- * Target CSS (dsh 0.1.1-rc.2): the panel is `.VOzbGW_panel` inside
- * `.VOzbGW_overlay` (dsh-client-ui-settings-general). The hash may change
- * between dsh builds — when a dsh upgrade silently reverts the tweak, re-check
- * that file. Overrides are emitted at higher specificity so they win regardless
- * of <style> insertion order.
+ * Target CSS: the panel is `.VOzbGW_panel` inside `.VOzbGW_overlay`
+ * (dsh-client-ui-settings-general; verified on dsh 0.1.1-rc.2 through
+ * 0.1.7-rc.2). The hash may change between dsh builds — when a dsh upgrade
+ * silently reverts the tweak, re-check that file. Overrides are emitted at
+ * higher specificity so they win regardless of <style> insertion order.
  */
 window.__ModuleLoader__.load({
   id: '@weibaohui/dsh-settings-ui',
