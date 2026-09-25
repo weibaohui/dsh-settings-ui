@@ -124,6 +124,21 @@ function parseLegacySettingsYaml(text) {
   }
 }
 
+
+// 0.1.7 宿主 resolveConfig 会把 apply-config 里的 volatile 字段物化成 {}（实测）：
+// {} 会盖掉 DEFAULTS，导致 describe 就绪前/降级路径下拿到毒化值。这里只保留
+// 类型与默认值一致的标量/数组；真实持久化值走 describe 投影（liveSettings）。
+function saneConfigValues(config, defaults) {
+  const out = {}
+  for (const key of Object.keys(defaults)) {
+    const v = (config || {})[key]
+    if (v === undefined || v === null) continue
+    if (Array.isArray(defaults[key])) { if (Array.isArray(v)) out[key] = v; continue }
+    if (typeof v === typeof defaults[key]) out[key] = v
+  }
+  return out
+}
+
 function legacySettingsPath() {
   const home = process.env.DSH_HOME ? join(process.env.DSH_HOME) : homedir() + '/.dsh'
   return join(home, 'settings.yaml.imported')
@@ -152,7 +167,7 @@ module.exports = {
       warn(m) { try { hostLogger && hostLogger.warn && hostLogger.warn(m) } catch {} console.error(`dsh-settings-ui: ${m}`) },
     }
 
-    const base = { ...DEFAULTS, ...(config || {}) }
+    const base = { ...DEFAULTS, ...saneConfigValues(config, DEFAULTS) }
     let liveSettings = {} // settings 文档里的实时 volatile 值（事件驱动刷新）
     let memoryPatch = {} // settings 写回缺席/失败时的进程内兜底
 
