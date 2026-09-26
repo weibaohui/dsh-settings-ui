@@ -5,25 +5,25 @@
 
 **dsh 设置界面自定义**：调整 dsh 原生设置窗口的大小、透明度与背景。设置项就在设置窗口里（左侧导航「设置界面」），改动即时生效。
 
-![dsh-settings-ui：设置窗口尺寸 / 不透明度 / 纯色背景，亮暗主题实时跟随](https://raw.githubusercontent.com/weibaohui/dsh-settings-ui/main/docs/demo.gif)
+![dsh-settings-ui：设置窗口尺寸 / 不透明度 / 纯色背景，亮暗主题实时跟随](https://cdn.jsdelivr.net/gh/weibaohui/dsh-settings-ui@main/docs/demo.gif)
 
 ## 界面预览
 
 **亮色主题**（大尺寸，主题默认背景）：
 
-![亮色主题](https://raw.githubusercontent.com/weibaohui/dsh-settings-ui/main/docs/light.png)
+![亮色主题](https://cdn.jsdelivr.net/gh/weibaohui/dsh-settings-ui@main/docs/light.png)
 
 **暗色主题**——同一设置不刷新页面，切换主题实时跟随：
 
-![暗色主题](https://raw.githubusercontent.com/weibaohui/dsh-settings-ui/main/docs/dark.png)
+![暗色主题](https://cdn.jsdelivr.net/gh/weibaohui/dsh-settings-ui@main/docs/dark.png)
 
 **暗色 + 不透明度 70%**（半透明毛玻璃）：
 
-![暗色半透明](https://raw.githubusercontent.com/weibaohui/dsh-settings-ui/main/docs/dark-translucent.png)
+![暗色半透明](https://cdn.jsdelivr.net/gh/weibaohui/dsh-settings-ui@main/docs/dark-translucent.png)
 
 **暗色 + 全屏**：
 
-![暗色全屏](https://raw.githubusercontent.com/weibaohui/dsh-settings-ui/main/docs/dark-fullscreen.png)
+![暗色全屏](https://cdn.jsdelivr.net/gh/weibaohui/dsh-settings-ui@main/docs/dark-fullscreen.png)
 
 ## 核心功能
 
