@@ -62,7 +62,9 @@ function settingsSchema(S) {
     bgColorDark: S.string().default(DEFAULTS.bgColorDark).volatile(),
   })
 }
-const Config = settingsSchema(Schema)
+// settingsSchema 在 schemastery 不可用时返回 null；导出必须归一成 undefined——
+// 宿主 schema() 只排除 undefined，"toJSON" in null 会炸 settings.describe()（同 dsh-continue#4）
+const Config = settingsSchema(Schema) ?? undefined
 
 /** 老版本残留的 bgMode='image' 统一回落到主题默认（图片背景已下线）。 */
 function normalizeBgMode(mode) {
