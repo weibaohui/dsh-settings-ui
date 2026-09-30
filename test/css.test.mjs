@@ -33,8 +33,8 @@ test('buildCss: 全默认输出空串（宿主样式零覆盖）', () => {
 })
 
 test('buildCss: 任意覆盖都以高特异性选择器开头', () => {
-  assert.match(buildCss({ ...DEFAULTS, size: 'large' }), /^\.VOzbGW_overlay \.VOzbGW_panel\{/)
-  assert.equal(PANEL_SCOPED, '.VOzbGW_overlay .VOzbGW_panel')
+  assert.match(buildCss({ ...DEFAULTS, size: 'large' }), /^\[data-shortcut-modal="settings"\]\[role="dialog"\]\{/)
+  assert.equal(PANEL_SCOPED, '[data-shortcut-modal="settings"][role="dialog"]')
 })
 
 test('buildCss: 预置尺寸 / 全屏 / 自定义（含最小值钳位与小屏收缩）', () => {
@@ -77,10 +77,10 @@ test('buildCss: 已下线的 image 模式不再产出 background-image（旧值�
 
 test('ensureStyles: 设置窗口左菜单超高可滚动（section 多时不再被面板裁剪）', () => {
   const { STYLES } = client.__internals
-  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_nav\{min-height:0\}/)
-  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_navList\{[^}]*flex:1 1 auto/)
-  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_navList\{[^}]*min-height:0/)
-  assert.match(STYLES, /\.VOzbGW_overlay \.VOzbGW_navList\{[^}]*overflow-y:auto/)
+  assert.match(STYLES, /\[data-shortcut-modal="settings"\] nav\{min-height:0\}/)
+  assert.match(STYLES, /\[data-shortcut-modal="settings"\] nav > div:nth-of-type\(2\)\{[^}]*flex:1 1 auto/)
+  assert.match(STYLES, /\[data-shortcut-modal="settings"\] nav > div:nth-of-type\(2\)\{[^}]*min-height:0/)
+  assert.match(STYLES, /\[data-shortcut-modal="settings"\] nav > div:nth-of-type\(2\)\{[^}]*overflow-y:auto/)
 })
 
 // ── host sanitizeSettingsPatch ──────────────────────────────────────────

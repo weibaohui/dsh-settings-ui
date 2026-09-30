@@ -47,7 +47,7 @@ dsh plugin --profile web add @weibaohui/dsh-settings-ui -w
 ## 说明
 
 - 尺寸/透明度/背景只作用于原生设置窗口本身，不影响其他界面
-- 适配的宿主面板类名来自 `dsh-client-ui-settings-general`（dsh 0.1.1-rc.2 至 0.1.7-rc.2 实测一致）；dsh 大版本升级若面板类名变化，调整会静默失效（无害，恢复默认样式），届时更新本插件即可
+- 选择器改用设置面板的稳定属性 `[data-shortcut-modal="settings"][role="dialog"]`（dsh-client-ui-settings-general），不再依赖 CSS-module 易变 hash 类名（0.2.0 desktop 构建把 `VOzbGW_panel` 重生成为 `Dws9Sa_panel`，旧选择器命中 0 元素致静默失效）；属性 hash 无关，dsh 0.2.0+ 实测一致
 - 设置随 dsh profile 持久化（0.1.7 起经 settings 文档写入 profile patch）。从 dsh ≤0.1.6 升级后首次运行会自动把 `settings.yaml.imported` 里残留的 `settings-ui` 节迁移回来（仅当本 profile 从未手动设置过时执行一次）
 
 ## 联系我 :飞书群
@@ -60,6 +60,7 @@ dsh plugin --profile web add @weibaohui/dsh-settings-ui -w
 
 | 插件版本 | 适配 dsh 版本 | 备注 |
 |---------|--------------|------|
+| 0.2.10 | 0.2.0-rc.2 | 选择器改用稳定属性 `[data-shortcut-modal="settings"]`（hash 无关），修复 0.2.0 desktop app 面板 hash 由 `VOzbGW` 变 `Dws9Sa` 致 CSS 命中 0 元素、尺寸/透明度/背景全失效；`engines.dsh` 提升到 `>=0.2.0-rc.2` |
 | 0.2.9 | 0.1.7-rc.2 | 当前版本；修复降级路径 Config 导出 null——宿主 settings schema() 不排除 null，会炸 settings.describe() 拖垮整份设置文档（同 dsh-continue#4） |
 | 0.2.6 | 0.1.7-rc.2 | 修复宿主将 volatile 字段物化为 {} 导致的设置毒化（saneConfigValues 清洗 + 移除 Config 兼容字符串字段） |
 | 0.2.5 | 0.1.7-rc.2 | 适配 0.1.7 settings 模型（导出 volatile `Config`，`ctx.settings.update` 持久化），自动迁移 settings.yaml.imported 残留设置 |

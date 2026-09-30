@@ -8,11 +8,12 @@
  * them as an injected <style> at boot and after every save — changes take
  * effect while the settings window is open.
  *
- * Target CSS: the panel is `.VOzbGW_panel` inside `.VOzbGW_overlay`
- * (dsh-client-ui-settings-general; verified on dsh 0.1.1-rc.2 through
- * 0.1.7-rc.2). The hash may change between dsh builds — when a dsh upgrade
- * silently reverts the tweak, re-check that file. Overrides are emitted at
- * higher specificity so they win regardless of <style> insertion order.
+ * Target CSS: the settings panel is selected by its STABLE attribute
+ * `[data-shortcut-modal="settings"][role="dialog"]` (dsh-client-ui-settings-general),
+ * NOT the CSS-module hashed class — the hash (VOzbGW on dsh≤0.1.7 web profile,
+ * Dws9Sa on the 0.2.0 desktop app) regenerates per build and silently broke the
+ * tweak on the desktop profile. The attribute selector is hash-agnostic;
+ * specificity 0,2,0 wins regardless of <style> insertion order.
  */
 window.__ModuleLoader__.load({
   id: '@weibaohui/dsh-settings-ui',
@@ -39,7 +40,7 @@ window.__ModuleLoader__.load({
     var CLIENT_NAME = '@weibaohui/dsh-settings-ui'
     var API = '/dsh-settings-ui/api'
     var STYLE_ID = 'dsh-settings-ui-style'
-    var PANEL_SCOPED = '.VOzbGW_overlay .VOzbGW_panel'
+    var PANEL_SCOPED = '[data-shortcut-modal="settings"][role="dialog"]'
     var DEFAULTS = { size: 'default', customWidth: 1280, customHeight: 960, opacity: 100, bgMode: 'default', bgColorLight: '#eef1f5', bgColorDark: '#1e2a38' }
     var PRESETS = { large: { w: 1080, h: 780 }, xlarge: { w: 1280, h: 960 } }
 
@@ -102,8 +103,8 @@ window.__ModuleLoader__.load({
       '.su-err{font-size:12px;color:var(--dsw-alias-state-error,#c75050)}',
       // 宿主设置窗口左菜单没有 overflow 处理，section 多时被面板 overflow:hidden 裁掉；
       // 让列表占满剩余高度并可滚动。overflow-y:auto 在放得下时不产生任何视觉变化。
-      '.VOzbGW_overlay .VOzbGW_nav{min-height:0}',
-      '.VOzbGW_overlay .VOzbGW_navList{flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:12px}',
+      '[data-shortcut-modal="settings"] nav{min-height:0}',
+      '[data-shortcut-modal="settings"] nav > div:nth-of-type(2){flex:1 1 auto;min-height:0;overflow-y:auto;padding-bottom:12px}',
     ].join('')
 
     function ensureStyles() {
