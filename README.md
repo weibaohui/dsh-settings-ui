@@ -60,8 +60,9 @@ dsh plugin --profile web add @weibaohui/dsh-settings-ui -w
 
 | 插件版本 | 适配 dsh 版本 | 备注 |
 |---------|--------------|------|
+| 0.2.11 | 0.2.1-rc.2 | 修复 issue #2：冷启动约半数概率设置无法持久化——插件转 ESM（`src/index.mjs`，top-level await 动态 import schemastery：与宿主共享同一份 in-flight 模块记录，消除 `ERR_REQUIRE_ESM_RACE_CONDITION`；加载失败仍归一成 undefined 退回进程内兜底，静态 import 会让整个插件含悬浮球 UI 加载失败）；package.json 声明 `@deepseek-ai/schemastery ~3.18.5`（此前零声明，全靠别的包 hoist 顺带）；persist 失败回 503 + `ok:false`、client 保存失败显示错误不再闪"已保存"；已在 @deepseek-ai/dsh@0.2.1-rc.2 下核对宿主行为（插件经 `import()` 加载、`registry.plugin` 注册时快照 Config——事后回填无效），并发 import 模拟冷启动 8/8 拿到 Config |
 | 0.2.10 | 0.2.0-rc.2 | 选择器改用稳定属性 `[data-shortcut-modal="settings"]`（hash 无关），修复 0.2.0 desktop app 面板 hash 由 `VOzbGW` 变 `Dws9Sa` 致 CSS 命中 0 元素、尺寸/透明度/背景全失效；`engines.dsh` 提升到 `>=0.2.0-rc.2` |
-| 0.2.9 | 0.1.7-rc.2 | 当前版本；修复降级路径 Config 导出 null——宿主 settings schema() 不排除 null，会炸 settings.describe() 拖垮整份设置文档（同 dsh-continue#4） |
+| 0.2.9 | 0.1.7-rc.2 | 修复降级路径 Config 导出 null——宿主 settings schema() 不排除 null，会炸 settings.describe() 拖垮整份设置文档（同 dsh-continue#4） |
 | 0.2.6 | 0.1.7-rc.2 | 修复宿主将 volatile 字段物化为 {} 导致的设置毒化（saneConfigValues 清洗 + 移除 Config 兼容字符串字段） |
 | 0.2.5 | 0.1.7-rc.2 | 适配 0.1.7 settings 模型（导出 volatile `Config`，`ctx.settings.update` 持久化），自动迁移 settings.yaml.imported 残留设置 |
 | 0.2.3 / 0.2.4 | 0.1.7-rc.2 | settings 改动只在本次运行内生效（0.1.7 移除了 `ctx.settings.register`），重启还原 |
