@@ -1,5 +1,3 @@
-'use strict'
-
 /**
  * dsh-plugin-settings-ui — host half.
  *
@@ -14,11 +12,23 @@
  * 在 profile patch 里（重启不丢）。写入走 ctx.settings.update(ns, patch)，
  * 变更经 'settings/document-updated' 事件回流。settings 服务缺席时退回
  * 进程内兜底（本次运行有效，重启还原）。
+ *
+ * ESM + 动态 import（issue #2）：schemastery 是 ESM 包（type:module），其 CJS
+ * 入口第一行又 require ESM-only 的 @deepseek-ai/cosmokit——CJS 插件顶层同步
+ * require schemastery 撞上宿主冷启动并发 import() 的 in-flight ESM 图时，Node
+ * 抛 ERR_REQUIRE_ESM_RACE_CONDITION → Config undefined。宿主 registry.plugin
+ * 在注册时就把 Config 快照进 fiber runtime（事后异步回填实测无效），所以
+ * Config 必须在模块求值完成时同步就绪。插件转 ESM 后走 import()：与宿主共享
+ * 同一份 in-flight 模块记录（在飞就等、不重入），从根上消除竞态；依赖在
+ * package.json 显式声明，不再靠别的包 hoist 顺带。schemastery 加载失败时
+ * Config 仍归一成 undefined（宿主 schema() 只排除 undefined），插件退回
+ * 进程内兜底继续运行——静态 import 会让整个插件（含悬浮球 UI）加载失败，
+ * 与本插件的降级哲学相悖。
  */
 
-const { join } = require('node:path')
-const { homedir, } = require('node:os')
-const { readFileSync } = require('node:fs')
+import { join } from 'node:path'
+import { homedir } from 'node:os'
+import { readFileSync } from 'node:fs'
 
 const NS = 'dsh-settings-ui'
 
@@ -32,22 +42,16 @@ const DEFAULTS = {
   bgColorDark: '#1e2a38',   // 暗色主题下的纯色背景
 }
 
-// settings 服务要求 schemastery schema（宿主 vendored 副本优先，同 dsh-webdav-server）。
-// 必须在模块顶层同步构建并导出 Config：0.1.7 loader 通过
-// entry.fiber.runtime.Config 自动发现 schema，apply 里再建就晚了。
-function loadSchemastery() {
-  const errors = []
-  const { createRequire } = require('node:module')
-  for (const prefix of [process.env.DSH_GLOBAL_PREFIX, homedir() + '/.local'].filter(Boolean)) {
-    const hostCopy = join(prefix, 'lib', 'node_modules', '@deepseek-ai', 'dsh', 'node_modules', '@deepseek-ai', 'schemastery', 'lib', 'index.cjs')
-    try { return createRequire(hostCopy)(hostCopy) } catch (e) { errors.push(`host: ${String(e && e.message || e).slice(0, 100)}`) }
-  }
-  try { return require('@deepseek-ai/schemastery') } catch (e) { errors.push(`pkg: ${String(e && e.code || e)}`) }
-  schemaRequireError = errors.join(' | ')
-  return null
+// settings 服务要求 schemastery schema。必须在模块顶层同步构建并导出 Config：
+// loader 通过 entry.fiber.runtime.Config 自动发现 schema，apply 里再建就晚了。
+// 依赖 @deepseek-ai/schemastery 已在 package.json 声明（npm/pnpm 安装本插件时
+// 落进插件自己的 node_modules，不再依赖宿主副本探测）。
+let Schema = null
+try {
+  Schema = (await import('@deepseek-ai/schemastery')).default
+} catch (e) {
+  console.error(`dsh-settings-ui: schemastery 加载失败，设置退回进程内兜底（本次运行生效）: ${e && e.message || e}`)
 }
-let schemaRequireError = null
-const Schema = loadSchemastery()
 
 /** volatile 字段：0.1.7 settings 服务只投影/写回这些字段。 */
 function settingsSchema(S) {
@@ -155,7 +159,7 @@ function readLegacyYaml() {
   try { return readFileSync(legacySettingsPath(), 'utf8') } catch { return null }
 }
 
-module.exports = {
+export default {
   name: NS,
   inject: ['settings', 'webServer', 'connection'],
   Config,
@@ -308,7 +312,13 @@ module.exports = {
             const body = await readJsonBody(req)
             if (body === null || typeof body !== 'object') { sendJson(res, 400, { error: 'body must be an object' }); return }
             const patch = sanitizeSettingsPatch(body)
-            await persist(patch)
+            // 持久化失败回非 200 + ok:false（issue #2）：客户端据此不闪“已保存”，
+            // 否则用户无法察觉 profile 落盘失败（设置重启即还原）。
+            const persisted = await persist(patch)
+            if (!persisted) {
+              sendJson(res, 503, { ok: false, error: 'settings 服务不可用：设置仅本次运行生效，重启即还原', settings: effective() })
+              return
+            }
             sendJson(res, 200, { ok: true, settings: effective() })
             return
           }

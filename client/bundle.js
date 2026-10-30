@@ -61,6 +61,7 @@ window.__ModuleLoader__.load({
       bgColorDark: '暗色主题',
       reset: '恢复默认',
       saved: '已保存',
+      saveFailed: '保存失败（设置未落盘，重启即还原）',
       hint: '改动即时生效；纯色按亮/暗主题各存一色，切换自动跟随；随 dsh profile 保存',
       loadFailed: '设置加载失败',
     }
@@ -81,6 +82,7 @@ window.__ModuleLoader__.load({
       bgColorDark: 'Dark theme',
       reset: 'Reset',
       saved: 'Saved',
+      saveFailed: 'Save failed (settings not persisted; restored on restart)',
       hint: 'Applies live; colors are stored per theme and follow theme switches; saved with the dsh profile',
       loadFailed: 'Failed to load settings',
     }
@@ -179,10 +181,13 @@ window.__ModuleLoader__.load({
         fetch(API + '/settings', {
           method: 'PUT', headers: { 'content-type': 'application/json' },
           body: JSON.stringify(optimistic),
-        }).then((r) => r.json().catch(() => ({}))).then((d) => {
+        }).then((r) => r.json().catch(() => ({})).then((d) => ({ ok: r.ok, d }))).then(({ ok, d }) => {
           if (d && d.settings) { setS(d.settings); applyCss(d.settings) }
+          // 持久化失败（非 200 / ok:false）不闪“已保存”，显示错误（issue #2）——
+          // 否则用户无法察觉 profile 落盘失败，重启即还原。
+          if (!ok || (d && d.ok === false)) { setErr((d && d.error) || t('saveFailed')); return }
           setFlash(t('saved')); setTimeout(() => setFlash(''), 1600)
-        }).catch(() => setErr('HTTP ' + 'save failed'))
+        }).catch(() => setErr(t('saveFailed')))
       }
       const num = (key, min) => {
         const input = h('input', {

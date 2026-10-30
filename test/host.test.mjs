@@ -6,10 +6,11 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createRequire } from 'node:module'
 
-const require = createRequire(import.meta.url)
-const plugin = require('../src/index.js')
+// 插件 0.2.11 起转 ESM（issue #2：CJS 同步 require schemastery 撞宿主 in-flight
+// ESM 图抛 ERR_REQUIRE_ESM_RACE_CONDITION）——单测同样走 import()，且模块带
+// top-level await（schemastery 动态 import），require() 会抛 ERR_REQUIRE_ASYNC_MODULE。
+const plugin = (await import('../src/index.mjs')).default
 const { __internals } = plugin
 
 // 默认屏蔽真实宿主残留（本机 ~/.dsh/settings.yaml.imported 可能存在），
@@ -153,7 +154,10 @@ test('PUT survives a failing settings service via the in-memory fallback', async
   const settings = makeSettingsService({ failUpdate: 'No configurable plugin entry' })
   const { routes, warnings } = makeHarness({ settings })
   const { status, json } = await call(routes[0], 'PUT', '/dsh-settings-ui/api/settings', { size: 'full' })
-  assert.equal(status, 200)
+  // issue #2：持久化失败回 503 + ok:false（客户端据此不闪“已保存”），
+  // 不再无条件 200——否则用户无法察觉 profile 落盘失败。
+  assert.equal(status, 503)
+  assert.equal(json.ok, false)
   assert.equal(json.settings.size, 'full', 'the merge still applies for this run')
   assert.ok(warnings.some((w) => w.includes('仅本次运行生效')), 'the fallback is announced')
 })

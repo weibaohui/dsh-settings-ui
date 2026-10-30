@@ -85,7 +85,7 @@ test('ensureStyles: 设置窗口左菜单超高可滚动（section 多时不再�
 
 // ── host sanitizeSettingsPatch ──────────────────────────────────────────
 
-const host = require2('../src/index.js')
+const host = (await import('../src/index.mjs')).default
 const { sanitizeSettingsPatch } = host.__internals
 
 test('sanitize: 白名单字段通过，非法 size/bgMode/低 opacity 被拒或钳位', () => {
